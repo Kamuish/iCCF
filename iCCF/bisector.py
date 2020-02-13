@@ -163,9 +163,9 @@ def BIS_plot(x, y, down=(10, 40), up=(60, 90), rvunits='km/s'):
     ax.plot(bisf(yy), yy, 'k')
     ax.plot(bisf(fl1), fl1, 'or', ms=4)
 
-    ax.set(xlabel=f'RV [{rvunits}]', ylabel='Flux')
+    ax.set(xlabel='RV [%s]' % rvunits, ylabel='Flux')
     ax.legend(['observed CCF', 'BIS regions', 'bisector', 'mid-points'])
-    ax.set_title(f'BIS {down};{up}  {bis:7.4f} {rvunits}')
+    # ax.set_title('BIS {down};{up}  {bis:7.4f} {rvunits}'.format(down, up, bis, rvun))
 
     fig.tight_layout()
     plt.show()

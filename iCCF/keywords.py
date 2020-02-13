@@ -7,7 +7,7 @@ def getRV(fitsfile, keyword=None):
         return hdul[0].header[keyword]
     
     # need to look for it
-    fail = ValueError(f'Could not find any RV keyword in header of "{fitsfile}"')
+    fail = ValueError('Could not find any RV keyword in header of "%s"' % fitsfile)
     
     try: return hdul[0].header['HIERARCH ESO QC CCF RV']
     except KeyError: pass
@@ -51,7 +51,7 @@ def getBJD(fitsfile, keyword=None, mjd=True):
         return hdul[0].header[keyword]
 
     # need to look for it
-    fail = ValueError(f'Could not find any BJD keyword in header of "{fitsfile}"')
+    fail = ValueError('Could not find any BJD keyword in header of "%s"' % fitsfile)
 
     if mjd:
         sub = 24e5 + 0.5

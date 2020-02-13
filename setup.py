@@ -6,7 +6,7 @@ from os import path
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+with open(path.join(here, 'README.md')) as f:
     long_description = f.read()
 
 setup(
@@ -16,7 +16,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/j-faria/iCCF',
-    author='João Faria',
+    author='Joao Faria',
     author_email='joao.faria@astro.up.pt',
     classifiers=[
         'Development Status :: 4 - Beta',

@@ -72,13 +72,13 @@ class Indicators:
         self._EPS = EPS
         self._nEPS = nEPS
 
-    def __repr__(self):
-        if self.filename is None:
-            r = f'CCFindicators(RVmin={self.rv.min()}; '\
-                f'RVmax={self.rv.max()}; size={self.rv.size})'
-        else:
-            r = f'CCFindicators(CCF from {basename(self.filename)})'
-        return r
+    # def __repr__(self):
+    #     if self.filename is None:
+    #         r = f'CCFindicators(RVmin={self.rv.min()}; '\
+    #             f'RVmax={self.rv.max()}; size={self.rv.size})'
+    #     else:
+    #         r = f'CCFindicators(CCF from {basename(self.filename)})'
+    #     return r
 
     def __len__(self):
         return 1
@@ -233,8 +233,8 @@ def indicators_from_files(files, rdb_format=True, show=True, show_bjd=True,
                 else:
                     print(I.on_indicators)
 
-        if rdb_format:
-            print(
-                '\t'.join([f'{bjd:<.6f}'] + [f'{ind:<.5f}' for ind in I.all]))
-        else:
-            print((bjd, ) + I.all)
+        # if rdb_format:
+        #     print(
+        #         '\t'.join([f'{bjd:<.6f}'] + [f'{ind:<.5f}' for ind in I.all]))
+        # else:
+        print((bjd, ) + I.all)

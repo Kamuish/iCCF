@@ -18,9 +18,9 @@ def vspan(x, y, limits=(1, 3)):
         The CCF values.
     limits : tuple, optional
         For limits = (l1, l2), the upper part of the CCF is defined 
-        in the range [-∞ : -l1*σ][+l1*σ : +∞] and the lower part is defined 
-        in the range [-∞ : -l2*σ][-l1*σ : +l1*σ][+l2*σ : +∞],
-        where σ is the width of a Gaussian fit to the full profile.
+        in the range [-inf : -l1*sig][+l1*sig : +inf] and the lower part is defined 
+        in the range [-inf : -l2*sig][-l1*sig : +l1*sig][+l2*sig : +inf],
+        where sig is the width of a Gaussian fit to the full profile.
         Defaults to (1, 3), as used by Boisse+ (2011).
     """
     # fit a Gaussian to the profile

@@ -5,7 +5,7 @@ from scipy import optimize
 from .utils import numerical_gradient
 
 def gauss(x, p):
-    """ A Gaussian function with parameters p = [A, x0, σ, offset]. """
+    """ A Gaussian function with parameters p = [A, x0, sig, offset]. """
     return p[0] * exp(-(x - p[1])**2 / (2 * p[2]**2)) + p[3]
 
 
@@ -36,7 +36,7 @@ def _gauss_initial_guess(x, y):
 def gaussfit(x, y, p0=None, return_errors=False, use_deriv=True):
     """ 
     Fit a Gaussian function to `x`,`y` using least-squares, with initial guess
-    `p0` = [A, x0, σ, offset]. If p0 is not provided, the function tries an
+    `p0` = [A, x0, sig, offset]. If p0 is not provided, the function tries an
     educated guess, which might lead to bad results.
 
     Parameters
