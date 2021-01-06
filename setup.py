@@ -42,6 +42,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'scipy', 'matplotlib', 'astropy', 'cached_property', 'paramiko',
+        'numpy>=1.17', 'scipy', 'matplotlib', 'astropy', 'cached_property',
+        'paramiko'
     ],
 )
