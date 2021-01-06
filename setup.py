@@ -43,6 +43,6 @@ setup(
     zip_safe=False,
     install_requires=[
         'numpy>=1.17', 'scipy', 'matplotlib', 'astropy', 'cached_property',
-        'paramiko'
+        'paramiko', 'numba',
     ],
 )
