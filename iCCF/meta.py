@@ -1,4 +1,4 @@
-""" Calculate CCFs themselves. So meta! """
+"""Calculate CCFs themselves. So meta!"""
 
 import multiprocessing
 import os
@@ -23,37 +23,50 @@ from .keywords import getINSTRUMENT, getMASK, getTEL, getKW
 # global dictionary to store shared-memory variables
 var_dict = {}
 
-def init_worker(rvarray, rvarray_shape,
-                blaze, blaze_shape,
-                corr_model, corr_model_shape,
-                scierrdata, scierrdata_shape,
-                qualdata, qualdata_shape,
-                lldlldata, lldlldata_shape,
-                BERV, BERVMAX, mask, mask_width):
-    var_dict['rvarray'] = rvarray
-    var_dict['rvarray_shape'] = rvarray_shape
-    # 
-    var_dict['blaze'] = blaze
-    var_dict['blaze_shape'] = blaze_shape
+
+def init_worker(
+    rvarray,
+    rvarray_shape,
+    blaze,
+    blaze_shape,
+    corr_model,
+    corr_model_shape,
+    scierrdata,
+    scierrdata_shape,
+    qualdata,
+    qualdata_shape,
+    lldlldata,
+    lldlldata_shape,
+    BERV,
+    BERVMAX,
+    mask,
+    mask_width,
+):
+    var_dict["rvarray"] = rvarray
+    var_dict["rvarray_shape"] = rvarray_shape
     #
-    var_dict['corr_model'] = corr_model
-    var_dict['corr_model_shape'] = corr_model_shape
+    var_dict["blaze"] = blaze
+    var_dict["blaze_shape"] = blaze_shape
+    #
+    var_dict["corr_model"] = corr_model
+    var_dict["corr_model_shape"] = corr_model_shape
     ##
-    var_dict['scierrdata'] = scierrdata
-    var_dict['scierrdata_shape'] = scierrdata_shape
-    var_dict['qualdata'] = qualdata
-    var_dict['qualdata_shape'] = qualdata_shape
-    var_dict['lldlldata'] = lldlldata
-    var_dict['lldlldata_shape'] = lldlldata_shape
+    var_dict["scierrdata"] = scierrdata
+    var_dict["scierrdata_shape"] = scierrdata_shape
+    var_dict["qualdata"] = qualdata
+    var_dict["qualdata_shape"] = qualdata_shape
+    var_dict["lldlldata"] = lldlldata
+    var_dict["lldlldata_shape"] = lldlldata_shape
     ##
-    var_dict['BERV'] = BERV
-    var_dict['BERVMAX'] = BERVMAX
-    var_dict['mask'] = mask
-    var_dict['mask_width'] = mask_width
+    var_dict["BERV"] = BERV
+    var_dict["BERVMAX"] = BERVMAX
+    var_dict["mask"] = mask
+    var_dict["mask_width"] = mask_width
 
 
-def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
-                           mask, berv, bervmax, mask_width=0.5):
+def espdr_compute_CCF_fast(
+    ll, dll, flux, error, blaze, quality, RV_table, mask, berv, bervmax, mask_width=0.5
+):
     c = 299792.458
 
     nx_s2d = flux.size
@@ -68,30 +81,42 @@ def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
     dll2 = dll / 2.0  # cpl_image_divide_scalar_create(dll,2.);
     ll2 = ll - dll2  # cpl_image_subtract_create(ll,dll2);
 
-    #? this mimics the pipeline (note that cpl_image_get indices start at 1)
+    # ? this mimics the pipeline (note that cpl_image_get indices start at 1)
     imin, imax = 1, nx_s2d
-    while(imin < nx_s2d and quality[imin-1] != 0):
+    while imin < nx_s2d and quality[imin - 1] != 0:
         imin += 1
-    while(imax > 1 and quality[imax-1] != 0):
+    while imax > 1 and quality[imax - 1] != 0:
         imax -= 1
 
     if imin >= imax:
         return
-    #? note that cpl_image_get indices start at 1, hence the "-1"s
-    llmin = ll[imin + 1 - 1] / (1. + berv / c) * (1. + bervmax / c) / (1. + RV_table[0] / c)
-    llmax = ll[imax - 1 - 1] / (1. + berv / c) * (1. - bervmax / c) / (1. + RV_table[nx_ccf - 1] / c)
+    # ? note that cpl_image_get indices start at 1, hence the "-1"s
+    llmin = (
+        ll[imin + 1 - 1]
+        / (1.0 + berv / c)
+        * (1.0 + bervmax / c)
+        / (1.0 + RV_table[0] / c)
+    )
+    llmax = (
+        ll[imax - 1 - 1]
+        / (1.0 + berv / c)
+        * (1.0 - bervmax / c)
+        / (1.0 + RV_table[nx_ccf - 1] / c)
+    )
 
     imin, imax = 0, n_mask - 1
 
-    #? turns out cpl_table_get indices start at 0...
-    while (imin < n_mask and mask['lambda'][imin] < (llmin + 0.5 * mask_width / c * llmin)):
+    # ? turns out cpl_table_get indices start at 0...
+    while imin < n_mask and mask["lambda"][imin] < (
+        llmin + 0.5 * mask_width / c * llmin
+    ):
         imin += 1
-    while (imax >= 0     and mask['lambda'][imax] > (llmax - 0.5 * mask_width / c * llmax)):
+    while imax >= 0 and mask["lambda"][imax] > (llmax - 0.5 * mask_width / c * llmax):
         imax -= 1
 
     for i in range(imin, imax + 1):
-        #? cpl_array_get indices also start at 0
-        llcenter = mask['lambda'][i] * (1. + RV_table[nx_ccf // 2] / c)
+        # ? cpl_array_get indices also start at 0
+        llcenter = mask["lambda"][i] * (1.0 + RV_table[nx_ccf // 2] / c)
 
         # index_center = 1
         # while(ll[index_center-1] < llcenter): index_center += 1
@@ -99,11 +124,11 @@ def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
         # index_center = np.where(ll < llcenter)[0][-1] + 1
         index_center = bisect_left(ll, llcenter) + 1
 
-        contrast = mask['contrast'][i]
+        contrast = mask["contrast"][i]
         w = contrast * contrast
 
         for j in range(0, nx_ccf):
-            llcenter = mask['lambda'][i] * (1. + RV_table[j] / c)
+            llcenter = mask["lambda"][i] * (1.0 + RV_table[j] / c)
             llstart = llcenter - 0.5 * mask_width / c * llcenter
             llstop = llcenter + 0.5 * mask_width / c * llcenter
 
@@ -122,10 +147,26 @@ def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
             k = j
 
             for index in range(index1, index3):
-                ccf_flux[k] += w * flux[index-1] / blaze[index-1] * blaze[index_center-1]  # noqa: E501
+                ccf_flux[k] += (
+                    w * flux[index - 1] / blaze[index - 1] * blaze[index_center - 1]
+                )  # noqa: E501
 
-            ccf_flux[k] += w * flux[index1-1-1] * (ll2[index1-1]-llstart) / dll[index1-1-1] / blaze[index1-1-1] * blaze[index_center-1]
-            ccf_flux[k] -= w * flux[index3-1-1] * (ll2[index3-1]-llstop) / dll[index3-1-1] / blaze[index3-1-1] * blaze[index_center-1]
+            ccf_flux[k] += (
+                w
+                * flux[index1 - 1 - 1]
+                * (ll2[index1 - 1] - llstart)
+                / dll[index1 - 1 - 1]
+                / blaze[index1 - 1 - 1]
+                * blaze[index_center - 1]
+            )
+            ccf_flux[k] -= (
+                w
+                * flux[index3 - 1 - 1]
+                * (ll2[index3 - 1] - llstop)
+                / dll[index3 - 1 - 1]
+                / blaze[index3 - 1 - 1]
+                * blaze[index_center - 1]
+            )
 
             ccf_error[k] += w * w * error[index2 - 1 - 1] * error[index2 - 1 - 1]
 
@@ -136,11 +177,13 @@ def espdr_compute_CCF_fast(ll, dll, flux, error, blaze, quality, RV_table,
 
     return ccf_flux, ccf_error, ccf_quality
 
+
 def check_if_deblazed(s2dfile):
-    if 'S2D_BLAZE' in s2dfile:
+    if "S2D_BLAZE" in s2dfile:
         return False
-    if 'S2D_A.fits' in s2dfile:
+    if "S2D_A.fits" in s2dfile:
         return True
+
 
 def find_blaze(s2dfile, hdu=None):
     if hdu is None:
@@ -148,9 +191,10 @@ def find_blaze(s2dfile, hdu=None):
     else:
         header = hdu[0].header
 
-    for k, v in dict(header['*CAL* CATG']).items():
-        if v == 'BLAZE_A':
-            return k, header[k.replace('CATG', 'NAME')]
+    for k, v in dict(header["*CAL* CATG"]).items():
+        if v == "BLAZE_A":
+            return k, header[k.replace("CATG", "NAME")]
+
 
 def setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose):
     # find and read the blaze file
@@ -159,15 +203,17 @@ def setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose):
     else:
         if smart_blaze:
             # assert 'S2D_A' in s2dfile, 'Not a de-blazed S2D file'
-            s2d_blaze_file = s2dfile.replace('S2D_SKYSUB_A', 'S2D_A')
-            s2d_blaze_file = s2d_blaze_file.replace('S2D_A', 'S2D_BLAZE_A')
-            s2d_blaze_file = s2d_blaze_file.replace('S2D_TELL_CORR_A', 'S2D_BLAZE_TELL_CORR_A')
-            s2d_blaze_file = s2d_blaze_file.replace('ES_S2DA', 'ES_S2BA')
+            s2d_blaze_file = s2dfile.replace("S2D_SKYSUB_A", "S2D_A")
+            s2d_blaze_file = s2d_blaze_file.replace("S2D_A", "S2D_BLAZE_A")
+            s2d_blaze_file = s2d_blaze_file.replace(
+                "S2D_TELL_CORR_A", "S2D_BLAZE_TELL_CORR_A"
+            )
+            s2d_blaze_file = s2d_blaze_file.replace("ES_S2DA", "ES_S2BA")
             if os.path.exists(s2d_blaze_file):
                 if s2d_blaze_file == s2dfile:
                     raise FileNotFoundError
                 if verbose:
-                    print(f'Using file {s2d_blaze_file} for blaze correction')
+                    print(f"Using file {s2d_blaze_file} for blaze correction")
                 with fits.open(s2d_blaze_file) as hdu_s2d_blaze:
                     QUALDATA = hdu_s2d_blaze[3].data
                     qual = np.where(QUALDATA == 0)
@@ -175,63 +221,76 @@ def setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose):
                     # with np.errstate(invalid='ignore'):
                     blaze[qual] = hdu_s2d_blaze[1].data[qual] / hdu[1].data[qual]
             else:
-                raise FileNotFoundError(f'Could not find file: {s2d_blaze_file}') from None
+                raise FileNotFoundError(
+                    f"Could not find file: {s2d_blaze_file}"
+                ) from None
         else:
             _, blazefile = find_blaze(None, hdu=hdu)
             try:
                 blazefile = find_file(blazefile, ssh, verbose)
             except FileNotFoundError:
-                for replacement in [(':', '_'), (':', '%3A')]:
+                for replacement in [(":", "_"), (":", "%3A")]:
                     try:
-                        blazefile = find_file(blazefile.replace(*replacement), ssh, verbose)
+                        blazefile = find_file(
+                            blazefile.replace(*replacement), ssh, verbose
+                        )
                         break
                     except FileNotFoundError:
                         pass
                 else:
-                    raise FileNotFoundError(f'Could not find BLAZE file: {blazefile}') from None
+                    raise FileNotFoundError(
+                        f"Could not find BLAZE file: {blazefile}"
+                    ) from None
 
             with fits.open(blazefile) as hdu_blaze:
                 blaze = hdu_blaze[1].data
 
     return blaze
 
-def calculate_s2d_ccf(s2dfile, rvarray, order='all',
-                      mask_file='ESPRESSO_G2.fits', mask=None, mask_width=0.5,
-                      debug=False):
+
+def calculate_s2d_ccf(
+    s2dfile,
+    rvarray,
+    order="all",
+    mask_file="ESPRESSO_G2.fits",
+    mask=None,
+    mask_width=0.5,
+    debug=False,
+):
 
     with fits.open(s2dfile) as hdu:
 
-        if order == 'all':
+        if order == "all":
             if debug:
-                print('can only debug one order at a time...')
+                print("can only debug one order at a time...")
                 return
             orders = range(hdu[1].data.shape[0])
             return_sum = True
         else:
-            assert isinstance(order, int), 'order should be integer'
-            orders = (order, )
+            assert isinstance(order, int), "order should be integer"
+            orders = (order,)
             return_sum = False
 
-        BERV = hdu[0].header['HIERARCH ESO QC BERV']
-        BERVMAX = hdu[0].header['HIERARCH ESO QC BERVMAX']
+        BERV = hdu[0].header["HIERARCH ESO QC BERV"]
+        BERVMAX = hdu[0].header["HIERARCH ESO QC BERVMAX"]
 
-        dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL7 NAME']
-        blazefile = hdu[0].header['HIERARCH ESO PRO REC1 CAL13 NAME']
-        print('need', dllfile)
-        print('need', blazefile)
+        dllfile = hdu[0].header["HIERARCH ESO PRO REC1 CAL7 NAME"]
+        blazefile = hdu[0].header["HIERARCH ESO PRO REC1 CAL13 NAME"]
+        print("need", dllfile)
+        print("need", blazefile)
 
-        dllfile = glob(dllfile + '*')[0]
+        dllfile = glob(dllfile + "*")[0]
 
         # CCF mask
         if mask is None:
             with fits.open(mask_file) as mask_hdu:
                 mask = mask_hdu[1].data
         else:
-            assert 'lambda' in mask, 'mask must contain the "lambda" key'
-            assert 'contrast' in mask, 'mask must contain the "contrast" key'
+            assert "lambda" in mask, 'mask must contain the "lambda" key'
+            assert "contrast" in mask, 'mask must contain the "contrast" key'
 
         # get the flux correction stored in the S2D file
-        keyword = 'HIERARCH ESO QC ORDER%d FLUX CORR'
+        keyword = "HIERARCH ESO QC ORDER%d FLUX CORR"
         flux_corr = [hdu[0].header[keyword % (o + 1)] for o in range(170)]
 
         ccfs, ccfes = [], []
@@ -265,10 +324,20 @@ def calculate_s2d_ccf(s2dfile, rvarray, order='all',
             if debug:
                 return ll, dll, y, ye, blaze, quality, rvarray, mask, BERV, BERVMAX
 
-            print('calculating ccf (order %d)...' % order)
-            ccf, ccfe, _ = espdr_compute_CCF_fast(ll, dll, y, ye, blaze, quality,
-                                                  rvarray, mask, BERV, BERVMAX,
-                                                  mask_width=mask_width)
+            print("calculating ccf (order %d)..." % order)
+            ccf, ccfe, _ = espdr_compute_CCF_fast(
+                ll,
+                dll,
+                y,
+                ye,
+                blaze,
+                quality,
+                rvarray,
+                mask,
+                BERV,
+                BERVMAX,
+                mask_width=mask_width,
+            )
             ccfs.append(ccf)
             ccfes.append(ccfe)
 
@@ -280,40 +349,41 @@ def calculate_s2d_ccf(s2dfile, rvarray, order='all',
     else:
         return np.array(ccfs), np.array(ccfes)
 
+
 def find_file(file, ssh=None, verbose=True):
     if verbose:
-        print('Looking for file:', file)
+        print("Looking for file:", file)
 
     # first try here:
-    if os.path.exists(file) or os.path.exists(file + '.fits'):
+    if os.path.exists(file) or os.path.exists(file + ".fits"):
         if verbose:
-            print('\tfound it in current directory')
-        return glob(file + '*')[0]
+            print("\tfound it in current directory")
+        return glob(file + "*")[0]
 
-    similar = glob(file + '*.fits')
+    similar = glob(file + "*.fits")
     if len(similar) > 0:
         file = similar[0]
         if verbose:
-            print(f'\tfound a similar file in current directory ({file})')
+            print(f"\tfound a similar file in current directory ({file})")
         return file
 
     # try in iCCF/data
     try:
         f = find_data_file(file)
         if verbose:
-            print('\tfound file in iCCF/data')
+            print("\tfound file in iCCF/data")
         return f
     except FileNotFoundError:
         pass
 
     # try on the local machine
     try:
-        found = subprocess.check_output(f'locate {file}'.split())
+        found = subprocess.check_output(f"locate {file}".split())
         found = found.decode().split()
         if len(found) == 0:
             raise FileNotFoundError(file)
         if verbose:
-            print('\tfound file:', found[-1])
+            print("\tfound file:", found[-1])
         return found[-1]
     except (subprocess.CalledProcessError, FileNotFoundError):
         if ssh is None:
@@ -321,55 +391,72 @@ def find_file(file, ssh=None, verbose=True):
 
     # try on a server with SSH
     if ssh is not None:
-        if '@' not in ssh:
+        if "@" not in ssh:
             raise ValueError('ssh should be in the form "user@host"')
         # user, host = ssh.split('@')
-        locate_cmd = f'ssh {ssh} locate {file}'
+        locate_cmd = f"ssh {ssh} locate {file}"
         try:
             found = subprocess.check_output(locate_cmd.split())
             found = found.decode().split()
             if verbose:
-                print('\tfound file:', ssh + ':' + found[-1])
+                print("\tfound file:", ssh + ":" + found[-1])
         except subprocess.CalledProcessError:
             raise FileNotFoundError(file) from None
 
         full_path = found[-1]
-        scp_cmd = f'scp {ssh}:{full_path} .'
+        scp_cmd = f"scp {ssh}:{full_path} ."
         try:
             subprocess.check_call(scp_cmd.split())
             return os.path.split(full_path)[-1]
         except subprocess.CalledProcessError:
-            raise RuntimeError(f'Could not scp {file} from {ssh}') from None
+            raise RuntimeError(f"Could not scp {file} from {ssh}") from None
 
 
 def _dowork(order):
-    BERV = var_dict['BERV']
-    BERVMAX = var_dict['BERVMAX']
-    mask = var_dict['mask']
-    mask_width = var_dict['mask_width']
+    BERV = var_dict["BERV"]
+    BERVMAX = var_dict["BERVMAX"]
+    mask = var_dict["mask"]
+    mask_width = var_dict["mask_width"]
 
     # rebuild shared memory arrays as numpy arrays
-    rvarray = np.frombuffer(var_dict['rvarray']).reshape(var_dict['rvarray_shape'])
+    rvarray = np.frombuffer(var_dict["rvarray"]).reshape(var_dict["rvarray_shape"])
     # for these, we just need the order-th row
-    blaze = np.frombuffer(var_dict['blaze']).reshape(var_dict['blaze_shape'])[order]
-    corr_model = np.frombuffer(var_dict['corr_model']).reshape(var_dict['corr_model_shape'])[order]
+    blaze = np.frombuffer(var_dict["blaze"]).reshape(var_dict["blaze_shape"])[order]
+    corr_model = np.frombuffer(var_dict["corr_model"]).reshape(
+        var_dict["corr_model_shape"]
+    )[order]
 
-    quality = np.frombuffer(var_dict['qualdata'], dtype=np.uint16).reshape(var_dict['qualdata_shape'])[order]
+    quality = np.frombuffer(var_dict["qualdata"], dtype=np.uint16).reshape(
+        var_dict["qualdata_shape"]
+    )[order]
 
-    scierrdata = np.frombuffer(var_dict['scierrdata'], dtype=np.float32).reshape(var_dict['scierrdata_shape'])
-    flux = scierrdata[0, order] # SCIDATA
-    error = scierrdata[1, order] # ERRDATA
+    scierrdata = np.frombuffer(var_dict["scierrdata"], dtype=np.float32).reshape(
+        var_dict["scierrdata_shape"]
+    )
+    flux = scierrdata[0, order]  # SCIDATA
+    error = scierrdata[1, order]  # ERRDATA
 
-    lldlldata = np.frombuffer(var_dict['lldlldata']).reshape(var_dict['lldlldata_shape'])
-    ll = lldlldata[0, order] # WAVEDATA_AIR_BARY
-    dll = lldlldata[1, order] # DLLDATA_AIR_BARY
+    lldlldata = np.frombuffer(var_dict["lldlldata"]).reshape(
+        var_dict["lldlldata_shape"]
+    )
+    ll = lldlldata[0, order]  # WAVEDATA_AIR_BARY
+    dll = lldlldata[1, order]  # DLLDATA_AIR_BARY
 
     y = flux * blaze / corr_model
-    ye = error * blaze #/ corr_model[order]
+    ye = error * blaze  # / corr_model[order]
 
     ccf, ccfe, ccfq = espdr_compute_CCF_fast(
-        ll, dll, y, ye, blaze, quality, rvarray, mask,
-        BERV, BERVMAX, mask_width=mask_width
+        ll,
+        dll,
+        y,
+        ye,
+        blaze,
+        quality,
+        rvarray,
+        mask,
+        BERV,
+        BERVMAX,
+        mask_width=mask_width,
     )
 
     # assert np.isfinite(ccf).all(), (order, ccf)
@@ -378,11 +465,22 @@ def _dowork(order):
     return ccf, ccfe, ccfq
 
 
-def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5, 
-                               order='all', pixels=None, ncores=None,
-                               verbose=True, full_output=False, smart_blaze=True,
-                               ignore_blaze=False, do_flux_corr=False, ssh=None,
-                               flux_corr_params=None):
+def calculate_s2d_ccf_parallel(
+    s2dfile,
+    rvarray,
+    mask,
+    mask_width=0.5,
+    order="all",
+    pixels=None,
+    ncores=None,
+    verbose=True,
+    full_output=False,
+    smart_blaze=True,
+    ignore_blaze=False,
+    do_flux_corr=False,
+    ssh=None,
+    flux_corr_params=None,
+):
     """
     Calculate the CCF between a 2D spectra and a mask. This function can lookup
     necessary files (locally or over SSH) and can perform the calculation in
@@ -406,7 +504,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
     verbose : bool
         Print messages and a progress bar during the calculation
     full_output : bool
-        Return all the quantities that went into the CCF calculation (some 
+        Return all the quantities that went into the CCF calculation (some
         extracted from the S2D file)
     smart_blaze : bool
         If True, the function will try to reconstruct the blaze file by looking
@@ -415,7 +513,7 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
         If True, the function completely ignores any blaze correction and takes
         the flux values as is from the S2D file
     do_flux_corr : bool
-        Whether to perform the flux correction step. By default, check the 
+        Whether to perform the flux correction step. By default, check the
         'HIERARCH ESO QC SCIRED FLUX CORR CHECK' keyword in the S2D header
     ssh : str
         SSH information in the form "user@host" to look for required calibration
@@ -431,9 +529,9 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
         ncores = get_ncores() // 2
 
     if verbose:
-        print(f'Using {ncores} CPU cores for the calculation')
+        print(f"Using {ncores} CPU cores for the calculation")
 
-    if order == 'all':
+    if order == "all":
         orders = range(norders)
         return_sum = True
         if verbose:
@@ -442,31 +540,31 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
         orders = order
         return_sum = True
     else:
-        assert isinstance(order, int), 'order should be integer'
-        orders = (order, )
+        assert isinstance(order, int), "order should be integer"
+        orders = (order,)
         return_sum = False
         if verbose:
             pass
 
     if flux_corr_params is not None:
         if not isinstance(flux_corr_params, dict):
-            raise ValueError('flux_corr_params should be a dictionary')
+            raise ValueError("flux_corr_params should be a dictionary")
 
-    BERV = hdu[0].header[f'HIERARCH {tel} QC BERV']
-    BERVMAX = hdu[0].header[f'HIERARCH {tel} QC BERVMAX']
+    BERV = hdu[0].header[f"HIERARCH {tel} QC BERV"]
+    BERVMAX = hdu[0].header[f"HIERARCH {tel} QC BERVMAX"]
 
     if verbose:
-        print(f'Mask width: {mask_width}')
-        print(f'BERVMAX: {BERVMAX} km/s')
-        print(f'BERV: {BERV} km/s')
+        print(f"Mask width: {mask_width}")
+        print(f"BERVMAX: {BERVMAX} km/s")
+        print(f"BERV: {BERV} km/s")
 
     blaze = setup_blaze(ignore_blaze, smart_blaze, s2dfile, hdu, ssh, verbose)
 
     ll = hdu[5].data
-    if ll.min() > mask['lambda'].max():
-        raise ValueError('No wavelength overlap between S2D and mask lines')
-    if ll.max() < mask['lambda'].min():
-        raise ValueError('No wavelength overlap between S2D and mask lines')
+    if ll.min() > mask["lambda"].max():
+        raise ValueError("No wavelength overlap between S2D and mask lines")
+    if ll.max() < mask["lambda"].min():
+        raise ValueError("No wavelength overlap between S2D and mask lines")
 
     # dll used to be stored in a separate file (?), now it's in the S2D
     # dllfile = hdu[0].header['HIERARCH ESO PRO REC1 CAL8 NAME']
@@ -477,11 +575,11 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
     if do_flux_corr:
         if flux_corr_params is not None:
             # user-provided flux_corr array
-            flux_corr = flux_corr_params['flux_corr']
+            flux_corr = flux_corr_params["flux_corr"]
             if (flux_corr == 0.0).all():
-                raise ValueError('Flux correction is zero everywhere')
+                raise ValueError("Flux correction is zero everywhere")
             # user-provided polynomial degree or 8 by default
-            poly_deg = flux_corr_params.get('poly_deg', 8)
+            poly_deg = flux_corr_params.get("poly_deg", 8)
             llc = hdu[5].data[:, order_len // 2]
             use = ~np.isnan(flux_corr)
             ignore = (~use).sum()
@@ -490,17 +588,18 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
             ## flux correction as in the pipeline
 
             # get the flux correction stored in the S2D file
-            keyword = f'HIERARCH {tel} QC ORDER%d FLUX CORR'
-            flux_corr = np.array([hdu[0].header[keyword % o] 
-                                  for o in range(1, norders + 1)])
+            keyword = f"HIERARCH {tel} QC ORDER%d FLUX CORR"
+            flux_corr = np.array(
+                [hdu[0].header[keyword % o] for o in range(1, norders + 1)]
+            )
             if (flux_corr == 0.0).all():
-                raise ValueError('Flux correction is zero everywhere')
+                raise ValueError("Flux correction is zero everywhere")
 
             # fit a polynomial and evaluate it at each order's wavelength
             # orders with flux_corr = 1 are ignored in the polynomial fit
             fit_nb = (flux_corr != 1.0).sum()
             ignore = norders - fit_nb
-    
+
             # see espdr_science.c : espdr_correct_flux
             poly_deg = round(8 * fit_nb / norders)
 
@@ -509,83 +608,109 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
 
         corr_model = np.polyval(coeff, hdu[5].data)
         if verbose:
-            print('Performing flux correction', end=' ')
-            print(f'(discarding {ignore} orders; '
-                  f'polynomial of degree {poly_deg})')
-            
-            print("Flux correction performed with min/max values:", end=' ')
-            print(f'{flux_corr.min():.6f}/{flux_corr.max():.6f}')
+            print("Performing flux correction", end=" ")
+            print(f"(discarding {ignore} orders; " f"polynomial of degree {poly_deg})")
+
+            print("Flux correction performed with min/max values:", end=" ")
+            print(f"{flux_corr.min():.6f}/{flux_corr.max():.6f}")
     else:
         if verbose:
-            print('No flux correction performed')
+            print("No flux correction performed")
         corr_model = np.ones(norders)
-
 
     kwargs = {}
     # kwargs['data'] = [hdu[i].data[:, pixels] for i in range(5, 8)]
 
-    blaze_shared = multiprocessing.RawArray('d', int(np.prod(blaze.shape)))
+    blaze_shared = multiprocessing.RawArray("d", int(np.prod(blaze.shape)))
     blaze_shape = blaze.shape
-    blaze_temp = np.frombuffer(blaze_shared).reshape(blaze_shape) # temporary numpy array
-    np.copyto(blaze_temp, blaze) # copy data to shared array
+    blaze_temp = np.frombuffer(blaze_shared).reshape(
+        blaze_shape
+    )  # temporary numpy array
+    np.copyto(blaze_temp, blaze)  # copy data to shared array
 
-    corr_model_shared = multiprocessing.RawArray('d', int(np.prod(corr_model.shape)))
+    corr_model_shared = multiprocessing.RawArray("d", int(np.prod(corr_model.shape)))
     corr_model_shape = corr_model.shape
-    corr_model_temp = np.frombuffer(corr_model_shared).reshape(corr_model_shape) # temporary numpy array
-    np.copyto(corr_model_temp, corr_model) # copy data to shared array
+    corr_model_temp = np.frombuffer(corr_model_shared).reshape(
+        corr_model_shape
+    )  # temporary numpy array
+    np.copyto(corr_model_temp, corr_model)  # copy data to shared array
 
-    rvarray_shared = multiprocessing.RawArray('d', rvarray.shape[0])
+    rvarray_shared = multiprocessing.RawArray("d", rvarray.shape[0])
     rvarray_shape = rvarray.shape
-    rvarray_temp = np.frombuffer(rvarray_shared).reshape(rvarray_shape) # temporary numpy array
-    np.copyto(rvarray_temp, rvarray) # copy data to shared array
+    rvarray_temp = np.frombuffer(rvarray_shared).reshape(
+        rvarray_shape
+    )  # temporary numpy array
+    np.copyto(rvarray_temp, rvarray)  # copy data to shared array
 
     # the different HDUs have different types (float32, uint16, float64)
 
-    scierrdata_shared = multiprocessing.RawArray('f', 2 * int(np.prod(hdu[1].data.shape)))
+    scierrdata_shared = multiprocessing.RawArray(
+        "f", 2 * int(np.prod(hdu[1].data.shape))
+    )
     scierrdata_shape = (2, *hdu[1].data.shape)
-    scierrdata_temp = np.frombuffer(scierrdata_shared, dtype=np.float32).reshape(scierrdata_shape) # temporary numpy array
-    np.copyto(scierrdata_temp, np.stack([hdu[1].data, hdu[2].data])) # copy data to shared array
+    scierrdata_temp = np.frombuffer(scierrdata_shared, dtype=np.float32).reshape(
+        scierrdata_shape
+    )  # temporary numpy array
+    np.copyto(
+        scierrdata_temp, np.stack([hdu[1].data, hdu[2].data])
+    )  # copy data to shared array
 
-    qualdata_shared = multiprocessing.RawArray('H', int(np.prod(hdu[3].data.shape)))
+    qualdata_shared = multiprocessing.RawArray("H", int(np.prod(hdu[3].data.shape)))
     qualdata_shape = hdu[3].data.shape
-    qualdata_temp = np.frombuffer(qualdata_shared, dtype=np.uint16).reshape(qualdata_shape) # temporary numpy array
-    np.copyto(qualdata_temp, hdu[3].data) # copy data to shared array
+    qualdata_temp = np.frombuffer(qualdata_shared, dtype=np.uint16).reshape(
+        qualdata_shape
+    )  # temporary numpy array
+    np.copyto(qualdata_temp, hdu[3].data)  # copy data to shared array
 
-    lldlldata_shared = multiprocessing.RawArray('d', 2 * int(np.prod(hdu[1].data.shape)))
+    lldlldata_shared = multiprocessing.RawArray(
+        "d", 2 * int(np.prod(hdu[1].data.shape))
+    )
     lldlldata_shape = (2, *hdu[1].data.shape)
-    lldlldata_temp = np.frombuffer(lldlldata_shared).reshape(lldlldata_shape) # temporary numpy array
-    np.copyto(lldlldata_temp, np.stack([hdu[5].data, hdu[7].data])) # copy data to shared array
+    lldlldata_temp = np.frombuffer(lldlldata_shared).reshape(
+        lldlldata_shape
+    )  # temporary numpy array
+    np.copyto(
+        lldlldata_temp, np.stack([hdu[5].data, hdu[7].data])
+    )  # copy data to shared array
 
     if verbose:
-        print('Calculating...', end=' ', flush=True)
+        print("Calculating...", end=" ", flush=True)
 
     start = pytime.time()
 
     pool = multiprocessing.Pool(
         processes=ncores,
         initializer=init_worker,
-        initargs=(rvarray_shared, rvarray_shape,
-                  blaze_shared, blaze_shape,
-                  corr_model_shared, corr_model_shape,
-                  scierrdata_shared, scierrdata_shape,
-                  qualdata_shared, qualdata_shape,
-                  lldlldata_shared, lldlldata_shape,
-                  BERV, BERVMAX, mask, mask_width, ),
+        initargs=(
+            rvarray_shared,
+            rvarray_shape,
+            blaze_shared,
+            blaze_shape,
+            corr_model_shared,
+            corr_model_shape,
+            scierrdata_shared,
+            scierrdata_shape,
+            qualdata_shared,
+            qualdata_shape,
+            lldlldata_shared,
+            lldlldata_shape,
+            BERV,
+            BERVMAX,
+            mask,
+            mask_width,
+        ),
     )
 
     ## progress bar
-    ccfs, ccfes, ccfqs = zip(
-        *tqdm(pool.imap(_dowork, orders), total=len(orders))
-    )
-    ## no progress bar
+    ccfs, ccfes, ccfqs = zip(*pool.map(_dowork, orders))  ## no progress bar
     # ccfs, ccfes, ccfqs = zip(*pool.map(_dowork, product(orders, [kwargs, ])))
-    
+
     pool.close()
 
     end = pytime.time()
 
     if verbose:
-        print(f'done in {end - start:.2f} seconds')
+        print(f"done in {end - start:.2f} seconds")
 
     # assert np.isfinite(ccfs).all()
     # assert np.isfinite(ccfes).all()
@@ -610,10 +735,18 @@ def calculate_s2d_ccf_parallel(s2dfile, rvarray, mask, mask_width=0.5,
             return np.array(ccfs), np.array(ccfes), np.array(ccfqs)
 
 
-def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
-                               mask_width=0.5, ncores=None, verbose=True,
-                               full_output=False, ignore_blaze=True,
-                               skip_flux_corr=False, ssh=None):
+def calculate_s1d_ccf_parallel(
+    s1dfile,
+    rvarray,
+    mask_file="ESPRESSO_G2.fits",
+    mask_width=0.5,
+    ncores=None,
+    verbose=True,
+    full_output=False,
+    ignore_blaze=True,
+    skip_flux_corr=False,
+    ssh=None,
+):
     """
     docs
     """
@@ -624,10 +757,10 @@ def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
     # if ncores is None:
     #     ncores = get_ncores()
     ncores = 1  # TODO: make computation parallel for S1D
-    print(f'Using {ncores} CPU cores for the calculation')
+    print(f"Using {ncores} CPU cores for the calculation")
 
-    BERV = hdu[0].header['HIERARCH ESO QC BERV']
-    BERVMAX = hdu[0].header['HIERARCH ESO QC BERVMAX']
+    BERV = hdu[0].header["HIERARCH ESO QC BERV"]
+    BERVMAX = hdu[0].header["HIERARCH ESO QC BERVMAX"]
 
     wave = hdu[1].data.wavelength.astype(np.float64)
     wave_air = hdu[1].data.wavelength_air.astype(np.float64)
@@ -636,7 +769,7 @@ def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
     qual = hdu[1].data.quality.astype(int)
     blaze = np.ones_like(wave, dtype=np.float64)
 
-    #? not sure here
+    # ? not sure here
     dll = np.diff(wave_air)
     dll = np.r_[dll, dll[-1]]
 
@@ -644,17 +777,38 @@ def calculate_s1d_ccf_parallel(s1dfile, rvarray, mask_file='ESPRESSO_G2.fits',
     mask_file = find_file(mask_file, ssh, verbose)
     mask = fits.open(mask_file)[1].data
 
-    ccf, ccfe, ccfq = espdr_compute_CCF_fast(wave_air, dll, flux, error, blaze, qual, rvarray, mask,
-                                             BERV, BERVMAX, mask_width=mask_width)
+    ccf, ccfe, ccfq = espdr_compute_CCF_fast(
+        wave_air,
+        dll,
+        flux,
+        error,
+        blaze,
+        qual,
+        rvarray,
+        mask,
+        BERV,
+        BERVMAX,
+        mask_width=mask_width,
+    )
     kw = None
     return ccf, ccfe, ccfq, kw
 
 
-
-def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
-                  add_order_by_order_info=True, keep_prefix=False,
-                  rv_start=None, rv_step=None, rv_end=None, rv_width=None,
-                  verbose=True, **kwargs):
+def calculate_ccf(
+    filename,
+    mask=None,
+    rvarray=None,
+    output=None,
+    clobber=True,
+    add_order_by_order_info=True,
+    keep_prefix=False,
+    rv_start=None,
+    rv_step=None,
+    rv_end=None,
+    rv_width=None,
+    verbose=True,
+    **kwargs,
+):
     """
     Calculate the CCF for an S2D file and save the result to a fits file.
 
@@ -693,7 +847,7 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
             Print status messages and progress bar.
         **kwargs
             Keyword arguments passed directly to `calculate_s2d_ccf_parallel`
-    
+
     Returns:
         ccf_file: str
             The name of the output CCF file
@@ -707,14 +861,14 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
     instrument = getINSTRUMENT(filename)
 
     mask_widths = {
-        'ESPRESSO': 0.5,
-        'HARPS': 0.82,
-        'HARPN': 0.82,
-        'NIRPS': 1.0,
-        'CORALIE': 1.73,
+        "ESPRESSO": 0.5,
+        "HARPS": 0.82,
+        "HARPN": 0.82,
+        "NIRPS": 1.0,
+        "CORALIE": 1.73,
     }
     try:
-        kwargs.setdefault('mask_width', mask_widths[instrument])
+        kwargs.setdefault("mask_width", mask_widths[instrument])
     except KeyError:
         msg = f'Unknown mask width for {instrument}. Please provide the "mask_width" argument'
         raise ValueError(msg) from None
@@ -723,7 +877,7 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         mask = getMASK(filename)
 
     if verbose:
-        print('Using CCF mask:', mask)
+        print("Using CCF mask:", mask)
 
     if isinstance(mask, str):
         mask_str = mask
@@ -732,17 +886,17 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         with fits.open(mask_file) as hdul:
             mask = hdul[1].data
     elif isinstance(mask, Mask):
-        mask_str = f'{mask.mask_name}_{mask.nlines}'
+        mask_str = f"{mask.mask_name}_{mask.nlines}"
     else:
-        raise TypeError('mask must be a string or a `Mask` object')
+        raise TypeError("mask must be a string or a `Mask` object")
 
-    kwargs['mask'] = mask
+    kwargs["mask"] = mask
 
     if output:
         ccf_file = output
-        ccf_file += '' if ccf_file.endswith('.fits') else '.fits'
+        ccf_file += "" if ccf_file.endswith(".fits") else ".fits"
     else:
-        end = f'_CCF_{mask_str}_iCCF.fits'
+        end = f"_CCF_{mask_str}_iCCF.fits"
         if keep_prefix:
             ccf_file = os.path.splitext(filename)[0] + end
         else:
@@ -750,7 +904,7 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
 
     if os.path.exists(ccf_file) and not clobber:
         if verbose:
-            print(f'Output CCF file exists: {ccf_file}')
+            print(f"Output CCF file exists: {ccf_file}")
         return ccf_file
 
     if rvarray is None:
@@ -762,9 +916,9 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         getOBJRV = getKW("OBJ RV", OBJ_RV_keywords)
         OBJ_RV = getOBJRV(filename)
 
-        start = rv_start or s2dhdu_header[f'HIERARCH {TEL} RV START']
+        start = rv_start or s2dhdu_header[f"HIERARCH {TEL} RV START"]
         end = rv_end or (OBJ_RV + (OBJ_RV - start))
-        step = rv_step or s2dhdu_header[f'HIERARCH {TEL} RV STEP']
+        step = rv_step or s2dhdu_header[f"HIERARCH {TEL} RV STEP"]
 
         if rv_width is not None:
             start = OBJ_RV - rv_width
@@ -773,23 +927,24 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
         rvarray = np.arange(start, end + step, step)
 
     flux_corr = kwargs.get(
-        'do_flux_corr', 
-        bool(s2dhdu_header.get(f'HIERARCH {TEL} QC SCIRED FLUX CORR CHECK'))
+        "do_flux_corr",
+        bool(s2dhdu_header.get(f"HIERARCH {TEL} QC SCIRED FLUX CORR CHECK")),
     )
-    kwargs['do_flux_corr'] = flux_corr
+    kwargs["do_flux_corr"] = flux_corr
 
     # if s1d or 'S1D' in filename:
     #     ccf, ccfe, ccfq, kw = calculate_s1d_ccf_parallel(
     #         filename, rvarray, full_output=True, **kwargs)
     # else:
 
-    kwargs['verbose'] = verbose
+    kwargs["verbose"] = verbose
 
-    order = kwargs.pop('order', 'all')
-    order = kwargs.pop('orders', order)
+    order = kwargs.pop("order", "all")
+    order = kwargs.pop("orders", order)
 
-    ccf, ccfe, ccfq, kw = calculate_s2d_ccf_parallel(filename, rvarray, order=order, 
-                                                     full_output=True, **kwargs)
+    ccf, ccfe, ccfq, kw = calculate_s2d_ccf_parallel(
+        filename, rvarray, order=order, full_output=True, **kwargs
+    )
 
     # in the pipeline, data are saved as floats
     ccf = ccf.astype(np.float32)
@@ -798,47 +953,46 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
 
     # check for bad quality and raise warning
     if (ccfq[-1] != 0).all():
-        warnings.warn('all CCF values have bad quality mask')
+        warnings.warn("all CCF values have bad quality mask")
 
     Ind = Indicators(rvarray, ccf[-1], ccfe[-1])
 
     phdr = fits.Header(s2dhdu_header, copy=True)
-    phdr[f'HIERARCH {TEL} RV START'] = rvarray[0]
-    phdr[f'HIERARCH {TEL} RV STEP'] = np.ediff1d(rvarray)[0]
-    phdr[f'HIERARCH {TEL} QC CCF MASK'] = mask_str
+    phdr[f"HIERARCH {TEL} RV START"] = rvarray[0]
+    phdr[f"HIERARCH {TEL} RV STEP"] = np.ediff1d(rvarray)[0]
+    phdr[f"HIERARCH {TEL} QC CCF MASK"] = mask_str
 
     try:
         if np.isnan(Ind.RV):
-            warnings.warn('CCF RV is NaN')
+            warnings.warn("CCF RV is NaN")
         else:
-            phdr[f'HIERARCH {TEL} QC CCF RV'] = Ind.RV
-            phdr[f'HIERARCH {TEL} QC CCF RV ERROR'] = Ind.RVerror
-            phdr[f'HIERARCH {TEL} QC CCF FWHM'] = Ind.FWHM
-            phdr[f'HIERARCH {TEL} QC CCF FWHM ERROR'] = Ind.FWHMerror
-            phdr[f'HIERARCH {TEL} QC CCF BIS SPAN'] = Ind.BIS
-            phdr[f'HIERARCH {TEL} QC CCF BIS SPAN ERROR'] = Ind.BISerror
-            phdr[f'HIERARCH {TEL} QC CCF CONTRAST'] = Ind.contrast
+            phdr[f"HIERARCH {TEL} QC CCF RV"] = Ind.RV
+            phdr[f"HIERARCH {TEL} QC CCF RV ERROR"] = Ind.RVerror
+            phdr[f"HIERARCH {TEL} QC CCF FWHM"] = Ind.FWHM
+            phdr[f"HIERARCH {TEL} QC CCF FWHM ERROR"] = Ind.FWHMerror
+            phdr[f"HIERARCH {TEL} QC CCF BIS SPAN"] = Ind.BIS
+            phdr[f"HIERARCH {TEL} QC CCF BIS SPAN ERROR"] = Ind.BISerror
+            phdr[f"HIERARCH {TEL} QC CCF CONTRAST"] = Ind.contrast
         # # phdr[f'HIERARCH {TEL} QC CCF CONTRAST ERROR'] = Ind.contrasterror # TODO
         # # 'ESO QC CCF FLUX ASYMMETRY' # TODO
     except Exception as e:
         warnings.warn(str(e))
 
-
     phdu = fits.PrimaryHDU(header=phdr)
 
     # science data, the actual CCF!
     hdr1 = fits.Header()
-    hdr1['EXTNAME'] = 'SCIDATA'
+    hdr1["EXTNAME"] = "SCIDATA"
     hdu1 = fits.ImageHDU(ccf, header=hdr1)
 
     # CCF errors
     hdr2 = fits.Header()
-    hdr2['EXTNAME'] = 'ERRDATA'
+    hdr2["EXTNAME"] = "ERRDATA"
     hdu2 = fits.ImageHDU(ccfe, header=hdr2)
 
     # quality flag
     hdr3 = fits.Header()
-    hdr3['EXTNAME'] = 'QUALDATA'
+    hdr3["EXTNAME"] = "QUALDATA"
     hdu3 = fits.ImageHDU(ccfq, header=hdr3)
 
     hdul = fits.HDUList([phdu, hdu1, hdu2, hdu3])
@@ -849,20 +1003,17 @@ def calculate_ccf(filename, mask=None, rvarray=None, output=None, clobber=True,
 
     if add_order_by_order_info:
         from .iCCF import add_order_by_order_info
+
         Ind = add_order_by_order_info(Ind)
 
-    if kwargs.get('verbose', True):
-        print('Output to:', ccf_file)
-    
+    if kwargs.get("verbose", True):
+        print("Output to:", ccf_file)
+
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore', AstropyWarning)
+        warnings.simplefilter("ignore", AstropyWarning)
         Ind.HDU.writeto(ccf_file, overwrite=True, checksum=True)
 
     return ccf_file
-
-
-
-
 
 
 # @njit
